@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'screens/dashboard_screen.dart';
+import 'data/database_helper.dart';
+import 'data/models.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final db = DatabaseHelper.instance;
+  final categories = await db.getCategories();
+  print('Số danh mục có sẵn: ${categories.length}');
   runApp(const MyApp());
 }
 

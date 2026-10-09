@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../common/helpers.dart';
+import '../data/database_helper.dart';
+import '../data/models.dart';
+import 'add_transaction_screen.dart';
+import 'edit_transaction_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -7,83 +12,59 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _TransactionItem {
-  final String title;
-  final String category;
-  final String date;
-  final double amount; // dương = thu nhập, âm = chi tiêu
-  final IconData icon;
-  final Color color;
-
-  const _TransactionItem({
-    required this.title,
-    required this.category,
-    required this.date,
-    required this.amount,
-    required this.icon,
-    required this.color,
-  });
-}
-
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentNavIndex = 0;
 
-  final double balance = 5000000;
-  final double totalIncome = 8000000;
-  final double totalExpense = 3000000;
+  double balance = 0;
+  double totalIncome = 0;
+  double totalExpense = 0;
+  List<Map<String, dynamic>> recentTransactions = [];
 
-  final List<_TransactionItem> transactions = const [
-    _TransactionItem(
-      title: 'Ăn trưa',
-      category: 'Ăn uống',
-      date: '03/09/2024',
-      amount: -50000,
-      icon: Icons.restaurant,
-      color: Color(0xFFFF7A45),
-    ),
-    _TransactionItem(
-      title: 'Xăng xe',
-      category: 'Di chuyển',
-      date: '03/09/2024',
-      amount: -100000,
-      icon: Icons.directions_car,
-      color: Color(0xFF4D96FF),
-    ),
-    _TransactionItem(
-      title: 'Lương tháng 9',
-      category: 'Thu nhập',
-      date: '01/09/2024',
-      amount: 8000000,
-      icon: Icons.savings,
-      color: Color(0xFF34A853),
-    ),
-    _TransactionItem(
-      title: 'Mua sắm',
-      category: 'Mua sắm',
-      date: '31/08/2024',
-      amount: -300000,
-      icon: Icons.shopping_cart,
-      color: Color(0xFF9B59B6),
-    ),
-    _TransactionItem(
-      title: 'Học phí',
-      category: 'Giáo dục',
-      date: '30/08/2024',
-      amount: -500000,
-      icon: Icons.school,
-      color: Color(0xFF16A085),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  String _formatCurrency(num value) {
-    final isNegative = value < 0;
-    final absValue = value.abs().toInt().toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < absValue.length; i++) {
-      if (i > 0 && (absValue.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(absValue[i]);
-    }
-    return '${isNegative ? '-' : ''}${buffer.toString()} đ';
+  // Đọc dữ liệu thật từ SQLite
+  Future<void> _loadData() async {
+    final db = DatabaseHelper.instance;
+    final income = await db.getTotalIncome();
+    final expense = await db.getTotalExpense();
+    final rows = await db.getTransactionsWithCategory();
+    if (!mounted) return;
+    setState(() {
+      totalIncome = income;
+      totalExpense = expense;
+      balance = income - expense;
+      recentTransactions = rows.take(5).toList();
+    });
+  }
+
+  Future<void> _openAdd() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
+    );
+    if (changed == true) _loadData();
+  }
+
+  Future<void> _openEdit(Map<String, dynamic> row) async {
+    final transaction = TransactionModel(
+      id: row['id'] as int,
+      type: row['type'] as String,
+      categoryId: row['categoryId'] as int,
+      amount: (row['amount'] as num).toDouble(),
+      date: row['date'] as String,
+      note: (row['note'] as String?) ?? '',
+    );
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditTransactionScreen(transaction: transaction),
+      ),
+    );
+    if (changed == true) _loadData();
   }
 
   @override
@@ -164,12 +145,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           SizedBox(width: 6),
-                          Icon(Icons.remove_red_eye_outlined, color: Colors.white70, size: 16),
+                          Icon(Icons.remove_red_eye_outlined,
+                              color: Colors.white70, size: 16),
                         ],
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        _formatCurrency(balance).replaceAll('-', ''),
+                        formatCurrency(balance),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 26,
@@ -179,12 +161,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.account_balance_wallet, color: Colors.white, size: 56),
+                const Icon(Icons.account_balance_wallet,
+                    color: Colors.white, size: 56),
               ],
             ),
           ),
           const SizedBox(height: 10),
-          // Dot indicator
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(4, (i) {
@@ -207,7 +189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _SummaryCard(
                   label: 'TỔNG THU NHẬP',
-                  amount: _formatCurrency(totalIncome),
+                  amount: formatCurrency(totalIncome),
                   icon: Icons.arrow_downward,
                   color: const Color(0xFF34A853),
                   backgroundColor: const Color(0xFFE8F7EC),
@@ -217,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _SummaryCard(
                   label: 'TỔNG CHI TIÊU',
-                  amount: _formatCurrency(totalExpense),
+                  amount: formatCurrency(totalExpense),
                   icon: Icons.arrow_upward,
                   color: const Color(0xFFE64545),
                   backgroundColor: const Color(0xFFFDEBEB),
@@ -243,12 +225,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 4),
 
-          ...transactions.map((t) => _TransactionTile(item: t, formatCurrency: _formatCurrency)),
+          if (recentTransactions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  'Chưa có giao dịch nào.\nNhấn nút + để thêm giao dịch đầu tiên.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            ...recentTransactions.map(
+                  (row) => _TransactionTile(row: row, onTap: () => _openEdit(row)),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF2F6BFF),
-        onPressed: () {},
+        onPressed: _openAdd,
         child: const Icon(Icons.add, size: 28),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -297,7 +293,7 @@ class _SummaryCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 12,
-                backgroundColor: color.withOpacity(0.2),
+                backgroundColor: color.withAlpha(50),
                 child: Icon(icon, size: 14, color: color),
               ),
               const SizedBox(width: 6),
@@ -325,57 +321,68 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _TransactionTile extends StatelessWidget {
-  final _TransactionItem item;
-  final String Function(num) formatCurrency;
+  final Map<String, dynamic> row;
+  final VoidCallback onTap;
 
-  const _TransactionTile({required this.item, required this.formatCurrency});
+  const _TransactionTile({required this.row, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final isExpense = item.amount < 0;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: item.color,
-            child: Icon(item.icon, color: Colors.white, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.category}   ${item.date}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+    final isExpense = row['type'] == 'expense';
+    final amount = (row['amount'] as num).toDouble();
+    final categoryName = row['categoryName'] as String;
+    final note = (row['note'] as String?) ?? '';
+    final color = colorFromHex(row['categoryColor'] as String);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Text(
-            '${isExpense ? '-' : '+'}${formatCurrency(item.amount.abs()).replaceFirst('-', '')}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isExpense ? const Color(0xFFE64545) : const Color(0xFF34A853),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: color,
+              child: Icon(iconForCategory(categoryName), color: Colors.white, size: 18),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    note.isEmpty ? categoryName : note,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$categoryName   ${toDisplayDate(row['date'] as String)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${isExpense ? '-' : '+'}${formatCurrency(amount)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isExpense ? const Color(0xFFE64545) : const Color(0xFF34A853),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

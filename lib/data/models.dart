@@ -1,11 +1,9 @@
-// Các model tương ứng với 2 bảng trong database.
-
 class CategoryModel {
   final int? id;
   final String name;
-  final int icon; // Icons.xxx.codePoint
-  final String color; // mã hex, vd "#FF6B6B"
-  final String type; // "expense" hoặc "income"
+  final int icon;
+  final String color;
+  final String type;
 
   const CategoryModel({
     this.id,
@@ -38,10 +36,10 @@ class CategoryModel {
 
 class TransactionModel {
   final int? id;
-  final String type; // "expense" hoặc "income"
+  final String type;
   final int categoryId;
   final double amount;
-  final String date; // yyyy-MM-dd
+  final String date;
   final String note;
 
   const TransactionModel({

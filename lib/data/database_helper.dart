@@ -144,4 +144,68 @@ class DatabaseHelper {
     final expense = await getTotalExpense();
     return income - expense;
   }
+
+  // ---------------- BUỔI 7: TÌM KIẾM / LỌC / THỐNG KÊ ----------------
+
+  // Tìm kiếm + lọc giao dịch (kèm thông tin danh mục).
+  // Tất cả tham số đều tùy chọn; không truyền thì không lọc theo tiêu chí đó.
+  // Ngày dạng yyyy-MM-dd nên so sánh chuỗi là đúng thứ tự thời gian.
+  Future<List<Map<String, dynamic>>> searchTransactions({
+    String? keyword,
+    List<String>? types,
+    List<int>? categoryIds,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    final db = await database;
+    final where = <String>[];
+    final args = <Object>[];
+
+    if (keyword != null && keyword.isNotEmpty) {
+      where.add('(t.note LIKE ? OR c.name LIKE ?)');
+      args.addAll(['%$keyword%', '%$keyword%']);
+    }
+    if (types != null && types.isNotEmpty) {
+      where.add('t.type IN (${List.filled(types.length, '?').join(',')})');
+      args.addAll(types);
+    }
+    if (categoryIds != null && categoryIds.isNotEmpty) {
+      where.add('t.categoryId IN (${List.filled(categoryIds.length, '?').join(',')})');
+      args.addAll(categoryIds);
+    }
+    if (fromDate != null) {
+      where.add('t.date >= ?');
+      args.add(fromDate);
+    }
+    if (toDate != null) {
+      where.add('t.date <= ?');
+      args.add(toDate);
+    }
+
+    final whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+    return await db.rawQuery('''
+      SELECT t.id, t.type, t.amount, t.date, t.note,
+             c.id as categoryId, c.name as categoryName, c.icon as categoryIcon, c.color as categoryColor
+      FROM transactions t
+      INNER JOIN categories c ON t.categoryId = c.id
+      $whereSql
+      ORDER BY t.date DESC, t.id DESC
+    ''', args);
+  }
+
+  // Tổng chi tiêu theo từng danh mục trong khoảng ngày (dùng cho biểu đồ tròn).
+  Future<List<Map<String, dynamic>>> getExpenseByCategory(
+      String fromDate,
+      String toDate,
+      ) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT c.name as name, c.color as color, SUM(t.amount) as total
+      FROM transactions t
+      INNER JOIN categories c ON t.categoryId = c.id
+      WHERE t.type = 'expense' AND t.date >= ? AND t.date <= ?
+      GROUP BY c.id
+      ORDER BY total DESC
+    ''', [fromDate, toDate]);
+  }
 }

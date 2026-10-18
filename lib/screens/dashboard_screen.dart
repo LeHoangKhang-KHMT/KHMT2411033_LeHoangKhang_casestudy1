@@ -6,15 +6,15 @@ import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onSeeAll;
+
+  const DashboardScreen({super.key, this.onSeeAll});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _currentNavIndex = 0;
-
   double balance = 0;
   double totalIncome = 0;
   double totalExpense = 0;
@@ -79,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onPressed: () {},
         ),
         title: const Text(
-          'Quản lý thu chi',
+          'Xin chào!',
           style: TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
@@ -218,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: widget.onSeeAll,
                 child: const Text('Xem tất cả'),
               ),
             ],
@@ -246,18 +246,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: const Color(0xFF2F6BFF),
         onPressed: _openAdd,
         child: const Icon(Icons.add, size: 28),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentNavIndex,
-        onTap: (i) => setState(() => _currentNavIndex = i),
-        selectedItemColor: const Color(0xFF2F6BFF),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Giao dịch'),
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Thống kê'),
-        ],
       ),
     );
   }
